@@ -47,6 +47,7 @@ enum ProducerEvent {
     Release,
     Grab((ClientHandle, Position)),
     ClientEvent(ClientEvent),
+    EventTapDisabled,
 }
 
 impl InputCaptureState {
@@ -187,6 +188,7 @@ impl InputCaptureState {
                     }
                 }
             }
+            ProducerEvent::EventTapDisabled => return Err(anyhow!("Event tap disabled")),
         };
         Ok(())
     }
@@ -324,7 +326,12 @@ fn event_tap_tread(
                 event_type,
                 CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput
             ) {
-                todo!();
+                log::error!("CGEventTap disabled");
+                notify_tx
+                    .blocking_send(ProducerEvent::EventTapDisabled)
+                    .unwrap_or_else(|e| {
+                        log::error!("Failed to send notification: {e}");
+                    });
             }
 
             // Are we in a client?

@@ -2,6 +2,7 @@ use crate::capture::InputCapture;
 use crate::client::{ClientEvent, ClientHandle, Position};
 use crate::event::{Event, KeyboardEvent, PointerEvent, BTN_LEFT, BTN_MIDDLE, BTN_RIGHT};
 use anyhow::{anyhow, Result};
+use bitflags::bitflags;
 use core_foundation::base::{kCFAllocatorDefault, CFRelease};
 use core_foundation::date::CFTimeInterval;
 use core_foundation::number::{kCFBooleanTrue, CFBooleanRef};
@@ -10,7 +11,7 @@ use core_foundation::string::{kCFStringEncodingUTF8, CFStringCreateWithCString, 
 use core_graphics::base::{kCGErrorSuccess, CGError};
 use core_graphics::display::{CGDisplay, CGPoint};
 use core_graphics::event::{
-    CGEvent, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
+    CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
     CGEventTapProxy, CGEventType, EventField,
 };
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
@@ -215,7 +216,35 @@ fn get_events(ev_type: &CGEventType, ev: &CGEvent, result: &mut Vec<Event>) -> R
             }));
         }
         CGEventType::FlagsChanged => {
-            todo!();
+            let mut mods = XMods::empty();
+            let mut mods_locked = XMods::empty();
+            let cg_flags = ev.get_flags();
+
+            if cg_flags.contains(CGEventFlags::CGEventFlagShift) {
+                mods |= XMods::ShiftMask;
+            }
+            if cg_flags.contains(CGEventFlags::CGEventFlagControl) {
+                mods |= XMods::ControlMask;
+            }
+            if cg_flags.contains(CGEventFlags::CGEventFlagAlternate) {
+                mods |= XMods::Mod1Mask;
+            }
+            if cg_flags.contains(CGEventFlags::CGEventFlagCommand) {
+                mods |= XMods::Mod4Mask;
+            }
+            if cg_flags.contains(CGEventFlags::CGEventFlagAlphaShift) {
+                mods |= XMods::LockMask;
+                mods_locked |= XMods::LockMask;
+            }
+
+            let modifier_event = KeyboardEvent::Modifiers {
+                mods_depressed: mods.bits(),
+                mods_latched: 0,
+                mods_locked: mods_locked.bits(),
+                group: 0,
+            };
+
+            result.push(Event::Keyboard(modifier_event));
         }
         CGEventType::MouseMoved => result.push(Event::Pointer(map_pointer_event(ev))),
         CGEventType::LeftMouseDragged => result.push(Event::Pointer(map_pointer_event(ev))),
@@ -509,4 +538,20 @@ unsafe fn configure_cf_settings() -> Result<()> {
     }
     CFRelease(cf_key as *const c_void);
     Ok(())
+}
+
+// From X11/X.h
+bitflags! {
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    struct XMods: u32 {
+        const ShiftMask = (1<<0);
+        const LockMask = (1<<1);
+        const ControlMask = (1<<2);
+        const Mod1Mask = (1<<3);
+        const Mod2Mask = (1<<4);
+        const Mod3Mask = (1<<5);
+        const Mod4Mask = (1<<6);
+        const Mod5Mask = (1<<7);
+    }
 }

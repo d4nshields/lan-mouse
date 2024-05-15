@@ -1290,6 +1290,7 @@ dependencies = [
  "ashpd",
  "async-channel",
  "async-trait",
+ "bitflags 2.5.0",
  "clap",
  "core-foundation",
  "core-foundation-sys",

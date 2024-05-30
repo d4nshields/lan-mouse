@@ -3,14 +3,16 @@ use webrtc::dtls::config::Config;
 use webrtc::dtls::conn::DTLSConn;
 use webrtc::dtls::Error;
 use webrtc::dtls::state::State;
-use webrtc::ice_transport::ice_gatherer::RTCIceGatherer;
+use webrtc::dtls::handshake::HandshakeState;
 use webrtc::ice_transport::RTCIceTransport;
-use webrtc::ice_transport::ice_server::RTCIceServer;
-use webrtc::ice_transport::
+use webrtc::RTCIceTransportPolicy;
+use webrtc::ice_transport::ice_gatherer::RTCIceGatherer;
 use webrtc::ice_transport::ice_role::RTCIceRole;
+use webrtc::api::setting_engine::SettingEngine;
+use webrtc::util::Conn;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
-use webrtc::util::Conn;
+use webrtc::ice::url::Url;
 
 pub struct DtlsHandler {
     dtls_conn: DTLSConn,
@@ -23,14 +25,12 @@ impl DtlsHandler {
             ..Default::default()
         };
 
-        // Initialize ICE gatherer
-        let ice_server = RTCIceServer {
-            urls: vec!["stun:stun.l.google.com:19302".to_owned()],
-            ..Default::default()
-        };
-        let ice_gatherer = RTCIceGatherer::new(ice_server).await?;
+        // Initialize ICE gatherer with the appropriate arguments
+        let validated_servers = vec![Url::parse("stun:stun.l.google.com:19302").unwrap()];
+        let gather_policy = RTCIceTransportPolicy::All;
+        let setting_engine = Arc::new(SettingEngine::default());
 
-        // Initialize ICE transport
+        let ice_gatherer = RTCIceGatherer::new(validated_servers, gather_policy, setting_engine).await?;
         let ice_transport = RTCIceTransport::new(Arc::new(ice_gatherer));
 
         let conn: Arc<dyn Conn + Send + Sync> = Arc::new(socket);
@@ -40,8 +40,9 @@ impl DtlsHandler {
         Ok(DtlsHandler { dtls_conn })
     }
 
-    pub async fn handshake(&self) -> Result<()> {
-        self.dtls_conn.handshake().await?;
+    pub async fn handshake(&mut self) -> Result<()> {
+        let state = HandshakeState::default();
+        self.dtls_conn.handshake(state).await?;
         Ok(())
     }
 

@@ -2004,6 +2004,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml",
+ "url",
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-misc",

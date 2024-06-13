@@ -1,4 +1,4 @@
-# Lan Mouse
+# Lan Mouse (branch: macos_inputcapture)
 Lan Mouse is a mouse and keyboard sharing software similar to universal-control on Apple devices.
 It allows for using multiple pcs with a single set of mouse and keyboard.
 This is also known as a Software KVM switch.

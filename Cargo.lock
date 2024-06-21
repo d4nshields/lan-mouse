@@ -1295,6 +1295,7 @@ dependencies = [
  "core-foundation",
  "core-foundation-sys",
  "core-graphics",
+ "endi",
  "env_logger",
  "futures",
  "futures-core",
